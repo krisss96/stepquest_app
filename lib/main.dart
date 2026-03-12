@@ -21,7 +21,21 @@ class MyMapPage extends StatelessWidget {
           TileLayer(
             urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
             subdomains: const ['a', 'b', 'c', 'd'],
-          )
+          ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: LatLng(51.4416, 5.4697), // pins player to location
+                width: 80,
+                height: 80,
+                child: Icon( // styling of icon
+                  Icons.location_history,
+                  color: Colors.blueAccent,
+                  size: 40,
+                ),
+              ),
+            ],
+          ),
         ],
       ), 
     ); 
