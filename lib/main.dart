@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'dart:typed_data'; // dart:typed_data - provides classes for working with binary data, used here for creating custom marker icons from byte data
 import 'dart:ui' as ui; // dart:ui - provides low-level graphics operations, used here for creating custom marker icons
+import 'battlepage.dart';
 
 void main() {
   runApp(MaterialApp(home: MyMapPage()));
@@ -39,6 +40,7 @@ class _MyMapPageState extends State<MyMapPage> {
 
 
   // VARIABLES
+  DateTime? lastDismissedTime; // keeps track of the last time a battle dialog was dismissed
   gmaps.LatLng _toGmaps(ll.LatLng p) => gmaps.LatLng(p.latitude, p.longitude);
   bool isBattleActive = false;
   double playerProgress = 0;
@@ -125,8 +127,7 @@ class _MyMapPageState extends State<MyMapPage> {
     super.initState(); // standard background setup
     // !! ALWAYS CALL SUPER.INITSTATE() FIRST !!
     _initLocation();
-    _loadCustomIcons();  // ADD THIS
-    _initLocation();
+    _loadCustomIcons();
   }
 
   void _initLocation() async {
@@ -163,7 +164,7 @@ class _MyMapPageState extends State<MyMapPage> {
 
         setState(() {
           playerProgress = movedDistance;
-          rivalProgress += 3.0;
+          rivalProgress += 1.7;
         });
 
         if (playerProgress >= 500) {
@@ -172,7 +173,6 @@ class _MyMapPageState extends State<MyMapPage> {
           endBattle(false, currentRival!);
         }
       }
-
       // check every hub in the list
       for (var hub in poi) {
         if (checkIfInsideHub(newPoint,
@@ -194,7 +194,10 @@ class _MyMapPageState extends State<MyMapPage> {
             rival.position.latitude, rival.position.longitude
         );
 
-        if (dist < 100 && !isBattleActive) {
+        bool isCooldownOver = lastDismissedTime == null ||
+            DateTime.now().difference(lastDismissedTime!).inSeconds > 30;
+
+        if (dist < 100 && !isBattleActive && isCooldownOver) {
           showBattleDialog(rival);
         }
       }
@@ -258,9 +261,15 @@ class _MyMapPageState extends State<MyMapPage> {
                     : 'Purple'} Rival. Challenge them to a territory battle?"),
 
             actions: [ // list of buttons
-              TextButton(onPressed: () => Navigator.pop(context),
-                  // onPressed: () => ... - one line function
-                  child: Text("Dismiss")),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    lastDismissedTime = DateTime.now();
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text("Dismiss"),
+              ),
               ElevatedButton( // ElevatedButton - a button with a background color, used for primary actions
                 onPressed: () {
                   // onPressed: () { ... } - multi-line action
@@ -279,8 +288,8 @@ class _MyMapPageState extends State<MyMapPage> {
     setState(() {
       isBattleActive = true;
       currentRival = rival;
-      playerProgress = 0;
-      rivalProgress = 0;
+      playerProgress = 400; // test start value
+      rivalProgress = 120;  // test start value
       battleStartPoint = myPosition;
     });
 
@@ -290,88 +299,134 @@ class _MyMapPageState extends State<MyMapPage> {
     );
   }
 
-  //End battle
-  void endBattle(bool playerWon, Rival rival) {
+  // Debug helper: manually move both runners without real-world walking.
+  void _incrementBattleProgress() {
+    if (!isBattleActive || currentRival == null) return;
+
     setState(() {
-      isBattleActive = false;
+      playerProgress = (playerProgress + 25).clamp(0.0, 500.0);
+      rivalProgress = (rivalProgress + 15).clamp(0.0, 500.0);
     });
 
-    if (playerWon) {
-      setState(() {
-        capturedPoi.add(rival.position);
-        rivals.remove(rival);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Congratulations! You conquered new territory"),
-            duration: Duration(seconds: 3)),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You lost the battle"),
-            duration: Duration(seconds: 3)),
-      );
+    if (playerProgress >= 500) {
+      endBattle(true, currentRival!);
+    } else if (rivalProgress >= 500) {
+      endBattle(false, currentRival!);
     }
-
-    playerProgress = 0;
-    rivalProgress = 0;
   }
 
+  //End battle
+  void endBattle(bool playerWon, Rival rival) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(playerWon ? "VICTORY!" : "DEFEAT!"),
+        content: Text(playerWon
+            ? "You have conquered new territory!"
+            : "The rival was too fast. Train harder and try again!"),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+
+              setState(() {
+                isBattleActive = false;
+                if (playerWon) {
+                  capturedPoi.add(rival.position);
+                  rivals.remove(rival);
+                }
+                playerProgress = 0;
+                rivalProgress = 0;
+              });
+            },
+            child: const Text("RETURN TO MAP"),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // Build method - describes how to display the widget
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Scaffold - provides a basic structure for the app, including app bar, body, etc.
-      body: gmaps.GoogleMap(
-        style: _myMapStyle,
-        initialCameraPosition: gmaps.CameraPosition(
-          target: _toGmaps(myPosition),
-          zoom: 14.0,
-        ),
-        myLocationEnabled: true,
-        onMapCreated: (controller) {},
-
-        // MARKER LOGIC
-        markers: {
-          gmaps.Marker(
-            markerId: const gmaps.MarkerId('player'),
-            position: _toGmaps(myPosition),
-            icon: _playerIcon,
-          ),
-
-          ...poi.map((p) => gmaps.Marker(
-            markerId: gmaps.MarkerId('poi_${p.latitude}_${p.longitude}'),
-            position: _toGmaps(p),
-            icon: _towerIcon,
-          )),
-
-          ...rivals.map((r) => gmaps.Marker(
-            markerId: gmaps.MarkerId('rival_${r.position.latitude}_${r.position.longitude}'),
-            position: _toGmaps(r.position),
-            icon: _flagIcon,
-          )),
-        }.toSet(),
-
-        // TERRITORY LOGIC
-        circles: {
-          ...capturedPoi.map((pos) => gmaps.Circle(
-            circleId: gmaps.CircleId('captured_${pos.latitude}_${pos.longitude}'),
-            center: _toGmaps(pos),
-            radius: 350,
-            fillColor: Colors.blueAccent.withValues(alpha: 0.3),
-            strokeWidth: 2,
-            strokeColor: Colors.blueAccent,
-          )),
-
-          ...rivals.map((r) => gmaps.Circle(
-            circleId: gmaps.CircleId(
-              'rival_territory_${r.position.latitude}_${r.position.longitude}',
-            ),
-            center: _toGmaps(r.position),
-            radius: 350,
-            fillColor: r.color.withValues(alpha: 0.2),
-            strokeWidth: 2,
-            strokeColor: r.color,
-          )),
+    return Scaffold(
+      // Scaffold - provides a basic structure for the app
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            playerProgress = (playerProgress + 25).clamp(0.0, 500.0);
+            rivalProgress = (rivalProgress + 15).clamp(0.0, 500.0);
+          });
         },
+        child: const Icon(Icons.play_arrow),
+      ),
+      body:Stack( // Stack - allows you to overlay multiple widgets on top of each other
+          children: [
+            // The Map
+            gmaps.GoogleMap(
+              style: _myMapStyle,
+              initialCameraPosition: gmaps.CameraPosition(
+                target: _toGmaps(myPosition),
+                zoom: 14.0,
+              ),
+              myLocationEnabled: true,
+              onMapCreated: (controller) {},
+              // MARKER LOGIC
+              markers: {
+                gmaps.Marker(
+                  markerId: const gmaps.MarkerId('player'),
+                  position: _toGmaps(myPosition),
+                  icon: _playerIcon,
+                ),
+
+                ...poi.map((p) => gmaps.Marker(
+                  markerId: gmaps.MarkerId('poi_${p.latitude}_${p.longitude}'),
+                  position: _toGmaps(p),
+                  icon: _towerIcon,
+                )),
+
+                ...rivals.map((r) => gmaps.Marker(
+                  markerId: gmaps.MarkerId('rival_${r.position.latitude}_${r.position.longitude}'),
+                  position: _toGmaps(r.position),
+                  icon: _flagIcon,
+                )),
+              }.toSet(),
+
+              //  TERRITORY LOGIC
+              circles: {
+                ...capturedPoi.map((pos) => gmaps.Circle(
+                  // ... - cascade operator, allows you to add multiple items to a collection in a more concise way
+                  circleId: gmaps.CircleId('captured_${pos.latitude}_${pos.longitude}'),
+                  center: _toGmaps(pos),
+                  radius: 350,
+                  fillColor: Colors.blueAccent.withValues(alpha: 0.3),
+                  strokeWidth: 2,
+                  strokeColor: Colors.blueAccent,
+                )),
+
+                ...rivals.map((r) => gmaps.Circle(
+                  circleId: gmaps.CircleId(
+                    'rival_territory_${r.position.latitude}_${r.position.longitude}',
+                  ),
+                  center: _toGmaps(r.position),
+                  radius: 350,
+                  fillColor: r.color.withValues(alpha: 0.2),
+                  strokeWidth: 2,
+                  strokeColor: r.color,
+                )),
+              },
+            ),
+
+            if (isBattleActive)
+              BattlePage(
+                playerProgress: playerProgress, // Sending real movement data
+                rivalProgress: rivalProgress,   // Sending bot movement data
+                rivalColor: currentRival?.color ?? Colors.red, // Sending the territory color
+                onIncrementProgress: _incrementBattleProgress,
+              ),
+          ]
       ),
     );
   }
