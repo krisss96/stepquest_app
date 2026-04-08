@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:latlong2/latlong.dart' as ll; // latlong2 - package for handling geographical coordinates, provides the LatLng class and distance calculations
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -7,7 +8,67 @@ import 'dart:ui' as ui; // dart:ui - provides low-level graphics operations, use
 import 'battlepage.dart';
 
 void main() {
-  runApp(MaterialApp(home: MyMapPage()));
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SplashScreen(),
+    );
+  }
+}
+//
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MyMapPage()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        color: const Color(0xFF18261F),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FittedBox(
+                fit: BoxFit.contain,
+                child: Image(
+                  image: AssetImage('assets/9.png'),
+                  width: 740,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(height: 28),
+              const CircularProgressIndicator(
+                color: Colors.white,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 //Rivals
@@ -45,14 +106,53 @@ class _MyMapPageState extends State<MyMapPage> {
   bool isBattleActive = false;
   double playerProgress = 0;
   double rivalProgress = 0;
+  static const double _territoryMinCenterSpacingMeters = 760;
   ll.LatLng? battleStartPoint;
   Rival? currentRival;  // ? - Nullable Type, currently can be null
-  late gmaps.BitmapDescriptor _towerIcon;
-  late gmaps.BitmapDescriptor _flagIcon;
-  late gmaps.BitmapDescriptor _playerIcon;
+  gmaps.BitmapDescriptor? _towerIcon;
+  gmaps.BitmapDescriptor? _flagIcon;
+  gmaps.BitmapDescriptor? _purpleFlagIcon;
+  gmaps.BitmapDescriptor? _playerIcon;
+
+  List<ll.LatLng> _spacedPoi() {
+    final filtered = <ll.LatLng>[];
+    for (final hub in poi) {
+      if (_isFarEnoughFromExisting(hub, filtered)) {
+        filtered.add(hub);
+      }
+    }
+    return filtered;
+  }
+
+  List<Rival> _spacedRivals() {
+    final filtered = <Rival>[];
+    final acceptedPositions = <ll.LatLng>[];
+    for (final rival in rivals) {
+      if (_isFarEnoughFromExisting(rival.position, acceptedPositions)) {
+        filtered.add(rival);
+        acceptedPositions.add(rival.position);
+      }
+    }
+    return filtered;
+  }
+
+  bool _isFarEnoughFromExisting(ll.LatLng candidate, List<ll.LatLng> accepted) {
+    for (final existing in accepted) {
+      final distance = Geolocator.distanceBetween(
+        candidate.latitude,
+        candidate.longitude,
+        existing.latitude,
+        existing.longitude,
+      );
+      if (distance < _territoryMinCenterSpacingMeters) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   // Custom marker generation
-  Future<gmaps.BitmapDescriptor> _getMarkerBitmap(IconData iconData, Color color, {int size = 96}) async {
+  Future<gmaps.BitmapDescriptor> _getMarkerBitmap(IconData iconData, Color color, {int size = 132}) async {
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(pictureRecorder);
     final Paint paint = Paint()..color = color;
@@ -80,9 +180,22 @@ class _MyMapPageState extends State<MyMapPage> {
 
   // Load custom icons
   Future<void> _loadCustomIcons() async {
-    _towerIcon = await _getMarkerBitmap(Icons.castle, Colors.orange);
-    _flagIcon = await _getMarkerBitmap(Icons.flag, Colors.red);
-    _playerIcon = await _getMarkerBitmap(Icons.person, Colors.blue);
+    try {
+      final tower = await _getMarkerBitmap(Icons.flag, Colors.orange);
+      final flag = await _getMarkerBitmap(Icons.castle, Colors.red);
+      final purpleFlag = await _getMarkerBitmap(Icons.castle, Colors.purpleAccent);
+      final player = await _getMarkerBitmap(Icons.person, Colors.blue);
+
+      if (!mounted) return;
+      setState(() {
+        _towerIcon = tower;
+        _flagIcon = flag;
+        _purpleFlagIcon = purpleFlag;
+        _playerIcon = player;
+      });
+    } catch (_) {
+      // Keep Google default markers if custom marker generation fails.
+    }
   }
 
   // Rivals
@@ -92,10 +205,18 @@ class _MyMapPageState extends State<MyMapPage> {
     Rival(position: ll.LatLng(51.430280, 5.499215), color: Colors.redAccent),
     // park
     Rival(position: ll.LatLng(51.4460, 5.4850), color: Colors.redAccent),
+    Rival(position: const ll.LatLng(51.438400, 5.492200), color: Colors.redAccent),
+    Rival(position: const ll.LatLng(51.455200, 5.468900), color: Colors.redAccent),
     // City Center
     Rival(position: const ll.LatLng(51.411092, 5.457458),
         color: Colors.purpleAccent),
     Rival(position: const ll.LatLng(51.477588, 5.493336),
+        color: Colors.purpleAccent),
+    Rival(position: const ll.LatLng(51.421900, 5.470300),
+        color: Colors.purpleAccent),
+    Rival(position: const ll.LatLng(51.463300, 5.505200),
+        color: Colors.purpleAccent),
+    Rival(position: const ll.LatLng(51.434700, 5.452600),
         color: Colors.purpleAccent),
     // Lidl
   ];
@@ -118,6 +239,13 @@ class _MyMapPageState extends State<MyMapPage> {
     const ll.LatLng(51.464703, 5.473595),
     const ll.LatLng(51.426775, 5.508957),
     const ll.LatLng(51.434882, 5.513163),
+    const ll.LatLng(51.439250, 5.458700),
+    const ll.LatLng(51.452900, 5.496400),
+    const ll.LatLng(51.418300, 5.466100),
+    const ll.LatLng(51.470800, 5.486900),
+    const ll.LatLng(51.444600, 5.503800),
+    const ll.LatLng(51.429900, 5.452900),
+    const ll.LatLng(51.460100, 5.459300),
   ];
 
   @override
@@ -174,7 +302,7 @@ class _MyMapPageState extends State<MyMapPage> {
         }
       }
       // check every hub in the list
-      for (var hub in poi) {
+      for (var hub in _spacedPoi()) {
         if (checkIfInsideHub(newPoint,
             hub)) { // checks if the new point is within 50m of the hub
           if (!capturedPoi.contains(hub)) {
@@ -188,7 +316,7 @@ class _MyMapPageState extends State<MyMapPage> {
       }
 
       // checks rival location for battle challenge
-      for (var rival in rivals) {
+      for (var rival in _spacedRivals()) {
         double dist = Geolocator.distanceBetween(
             newPoint.latitude, newPoint.longitude,
             rival.position.latitude, rival.position.longitude
@@ -299,7 +427,7 @@ class _MyMapPageState extends State<MyMapPage> {
     );
   }
 
-  // Debug helper: manually move both runners without real-world walking.
+  // Debug helper- manually move both runners without real-world walking.
   void _incrementBattleProgress() {
     if (!isBattleActive || currentRival == null) return;
 
@@ -351,6 +479,9 @@ class _MyMapPageState extends State<MyMapPage> {
   // Build method - describes how to display the widget
   @override
   Widget build(BuildContext context) {
+    final spacedPoi = _spacedPoi();
+    final spacedRivals = _spacedRivals();
+
     return Scaffold(
       // Scaffold - provides a basic structure for the app
       floatingActionButton: FloatingActionButton(
@@ -378,19 +509,30 @@ class _MyMapPageState extends State<MyMapPage> {
                 gmaps.Marker(
                   markerId: const gmaps.MarkerId('player'),
                   position: _toGmaps(myPosition),
-                  icon: _playerIcon,
+                  icon: _playerIcon ??
+                      gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                        gmaps.BitmapDescriptor.hueAzure,
+                      ),
                 ),
 
-                ...poi.map((p) => gmaps.Marker(
+                ...spacedPoi.map((p) => gmaps.Marker(
                   markerId: gmaps.MarkerId('poi_${p.latitude}_${p.longitude}'),
                   position: _toGmaps(p),
-                  icon: _towerIcon,
+                  icon: _towerIcon ??
+                      gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                        gmaps.BitmapDescriptor.hueOrange,
+                      ),
                 )),
 
-                ...rivals.map((r) => gmaps.Marker(
+                ...spacedRivals.map((r) => gmaps.Marker(
                   markerId: gmaps.MarkerId('rival_${r.position.latitude}_${r.position.longitude}'),
                   position: _toGmaps(r.position),
-                  icon: _flagIcon,
+                  icon: (r.color == Colors.purpleAccent ? _purpleFlagIcon : _flagIcon) ?? // ?? - null-aware operator, if the left side is not null, use it; otherwise, use the right side
+                      gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                        r.color == Colors.purpleAccent
+                            ? gmaps.BitmapDescriptor.hueViolet
+                            : gmaps.BitmapDescriptor.hueRed,
+                      ),
                 )),
               }.toSet(),
 
@@ -406,7 +548,7 @@ class _MyMapPageState extends State<MyMapPage> {
                   strokeColor: Colors.blueAccent,
                 )),
 
-                ...rivals.map((r) => gmaps.Circle(
+                ...spacedRivals.map((r) => gmaps.Circle(
                   circleId: gmaps.CircleId(
                     'rival_territory_${r.position.latitude}_${r.position.longitude}',
                   ),
