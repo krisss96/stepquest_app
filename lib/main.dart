@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:latlong2/latlong.dart' as ll; // latlong2 - package for handling geographical coordinates, provides the LatLng class and distance calculations
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:typed_data'; // dart:typed_data - provides classes for working with binary data, used here for creating custom marker icons from byte data
 import 'dart:ui' as ui; // dart:ui - provides low-level graphics operations, used here for creating custom marker icons
 import 'battlepage.dart';
@@ -55,7 +56,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 fit: BoxFit.contain,
                 child: Image(
                   image: AssetImage('assets/9.png'),
-                  width: 740,
+                  width: 1480,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -104,6 +105,7 @@ class _MyMapPageState extends State<MyMapPage> {
   DateTime? lastDismissedTime; // keeps track of the last time a battle dialog was dismissed
   gmaps.LatLng _toGmaps(ll.LatLng p) => gmaps.LatLng(p.latitude, p.longitude);
   bool isBattleActive = false;
+  bool _isInstructionsHovered = false;
   double playerProgress = 0;
   double rivalProgress = 0;
   static const double _territoryMinCenterSpacingMeters = 760;
@@ -239,13 +241,13 @@ class _MyMapPageState extends State<MyMapPage> {
     const ll.LatLng(51.464703, 5.473595),
     const ll.LatLng(51.426775, 5.508957),
     const ll.LatLng(51.434882, 5.513163),
-    const ll.LatLng(51.439250, 5.458700),
-    const ll.LatLng(51.452900, 5.496400),
-    const ll.LatLng(51.418300, 5.466100),
-    const ll.LatLng(51.470800, 5.486900),
-    const ll.LatLng(51.444600, 5.503800),
-    const ll.LatLng(51.429900, 5.452900),
-    const ll.LatLng(51.460100, 5.459300),
+    const ll.LatLng(51.489500, 5.458000),
+    const ll.LatLng(51.487200, 5.523800),
+    const ll.LatLng(51.399800, 5.522400),
+    const ll.LatLng(51.398900, 5.439500),
+    const ll.LatLng(51.471900, 5.432200),
+    const ll.LatLng(51.407300, 5.531100),
+    const ll.LatLng(51.493100, 5.501900),
   ];
 
   @override
@@ -283,7 +285,7 @@ class _MyMapPageState extends State<MyMapPage> {
         myPosition = newPoint;
       });
 
-      // Battle logic
+      // Battle logic 
       if (isBattleActive && battleStartPoint != null) {
         double movedDistance = Geolocator.distanceBetween(
           battleStartPoint!.latitude, battleStartPoint!.longitude,
@@ -377,16 +379,85 @@ class _MyMapPageState extends State<MyMapPage> {
   }
 
   // Battle logic
-  void showBattleDialog(Rival rival) {
+  void _showGameInstructions() {
     showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF18372E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFFF751F), width: 1.8),
+        ),
+        title: Text(
+          "STEPQUEST MISSION",
+          style: GoogleFonts.kodeMono(
+            color: const Color(0xFFFFC58A),
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            "Your mission is simple: Get there.\n\n"
+                "Want to claim more territory? Walk further.\n\n"
+                "Want to conquer your enemies? Challenge them to a battle and be faster.\n\n "
+                "Turn the entire map blue, one step at a time.",
+            style: GoogleFonts.geologica(
+              color: const Color(0xFFEAF7F2),
+              height: 1.4,
+              fontSize: 21,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF0F231D),
+              backgroundColor: const Color(0xFFFF751F),
+              textStyle: GoogleFonts.geologica(
+                fontWeight: FontWeight.w700,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Battle logic
+  void showBattleDialog(Rival rival) async {
+    final shouldStartBattle = await showDialog<bool>(
       context: context,
       builder: (context) =>
           AlertDialog( // AlertDialog - a pop-up dialog box that can display information and actions to the user
-            title: Text("Enemy Territory!"),
+            backgroundColor: const Color(0xFF18372E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: Color(0xFFFF751F), width: 1.8),
+            ),
+            title: Text(
+              "Enemy Territory!",
+              style: GoogleFonts.kodeMono(
+                color: const Color(0xFFFFC58A),
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
+            ),
             content: Text(
-                "This area belongs to the ${rival.color == Colors.redAccent
-                    ? 'Red'
-                    : 'Purple'} Rival. Challenge them to a territory battle?"),
+              "This area belongs to the ${rival.color == Colors.redAccent
+                  ? 'Red'
+                  : 'Purple'} Rival. Challenge them to a territory battle?",
+              style: GoogleFonts.geologica(
+                color: const Color(0xFFEAF7F2),
+                height: 1.4,
+                fontSize: 18,
+              ),
+            ),
 
             actions: [ // list of buttons
               TextButton(
@@ -394,21 +465,40 @@ class _MyMapPageState extends State<MyMapPage> {
                   setState(() {
                     lastDismissedTime = DateTime.now();
                   });
-                  Navigator.pop(context);
+                  Navigator.pop(context, false);
                 },
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFEAF7F2),
+                  textStyle: GoogleFonts.geologica(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 child: const Text("Dismiss"),
               ),
               ElevatedButton( // ElevatedButton - a button with a background color, used for primary actions
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0F231D),
+                  backgroundColor: const Color(0xFFFF751F),
+                  textStyle: GoogleFonts.geologica(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 onPressed: () {
                   // onPressed: () { ... } - multi-line action
-                  Navigator.pop(context); // closes the dialog
-                  startBattle(rival);
+                  Navigator.pop(context, true); // closes the dialog
                 },
-                child: Text("START BATTLE!"),
+                child: const Text("START BATTLE!"),
               ),
             ],
           ),
     );
+
+    if (shouldStartBattle == true && mounted) {
+      startBattle(rival);
+    }
   }
 
   // Battle state
@@ -427,7 +517,7 @@ class _MyMapPageState extends State<MyMapPage> {
     );
   }
 
-  // Debug helper- manually move both runners without real-world walking.
+  // Debug helper: manually move both runners without real-world walking.
   void _incrementBattleProgress() {
     if (!isBattleActive || currentRival == null) return;
 
@@ -449,12 +539,40 @@ class _MyMapPageState extends State<MyMapPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text(playerWon ? "VICTORY!" : "DEFEAT!"),
+        backgroundColor: const Color(0xFF18372E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFFF751F), width: 1.8),
+        ),
+        title: Text(
+          playerWon ? "VICTORY!" : "DEFEAT!",
+          style: GoogleFonts.kodeMono(
+            color: const Color(0xFFFFC58A),
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
+        ),
         content: Text(playerWon
             ? "You have conquered new territory!"
-            : "The rival was too fast. Train harder and try again!"),
+            : "The rival was too fast. Train harder and try again!",
+          style: GoogleFonts.geologica(
+            color: const Color(0xFFEAF7F2),
+            height: 1.4,
+            fontSize: 18,
+          ),
+        ),
         actions: [
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              foregroundColor: const Color(0xFF0F231D),
+              backgroundColor: const Color(0xFFFF751F),
+              textStyle: GoogleFonts.geologica(
+                fontWeight: FontWeight.w700,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed: () {
               Navigator.pop(context);
 
@@ -485,12 +603,7 @@ class _MyMapPageState extends State<MyMapPage> {
     return Scaffold(
       // Scaffold - provides a basic structure for the app
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            playerProgress = (playerProgress + 25).clamp(0.0, 500.0);
-            rivalProgress = (rivalProgress + 15).clamp(0.0, 500.0);
-          });
-        },
+        onPressed: _incrementBattleProgress,
         child: const Icon(Icons.play_arrow),
       ),
       body:Stack( // Stack - allows you to overlay multiple widgets on top of each other
@@ -527,7 +640,7 @@ class _MyMapPageState extends State<MyMapPage> {
                 ...spacedRivals.map((r) => gmaps.Marker(
                   markerId: gmaps.MarkerId('rival_${r.position.latitude}_${r.position.longitude}'),
                   position: _toGmaps(r.position),
-                  icon: (r.color == Colors.purpleAccent ? _purpleFlagIcon : _flagIcon) ?? // ?? - null-aware operator, if the left side is not null, use it; otherwise, use the right side
+                  icon: (r.color == Colors.purpleAccent ? _purpleFlagIcon : _flagIcon) ??
                       gmaps.BitmapDescriptor.defaultMarkerWithHue(
                         r.color == Colors.purpleAccent
                             ? gmaps.BitmapDescriptor.hueViolet
@@ -559,6 +672,48 @@ class _MyMapPageState extends State<MyMapPage> {
                   strokeColor: r.color,
                 )),
               },
+            ),
+
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12, right: 12),
+                  child: MouseRegion(
+                    onEnter: (_) => setState(() => _isInstructionsHovered = true),
+                    onExit: (_) => setState(() => _isInstructionsHovered = false),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      decoration: BoxDecoration(
+                        color: _isInstructionsHovered
+                            ? Colors.orange.withValues(alpha: 0.22)
+                            : Colors.black.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: _isInstructionsHovered
+                            ? [
+                          BoxShadow(
+                            color: Colors.orange.withValues(alpha: 0.35),
+                            blurRadius: 14,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                            : null,
+                      ),
+                      child: IconButton(
+                        tooltip: 'Game Instructions',
+                        icon: Icon(
+                          Icons.menu,
+                          color: _isInstructionsHovered
+                              ? const Color(0xFFFFE2BF)
+                              : Colors.white,
+                        ),
+                        onPressed: _showGameInstructions,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
 
             if (isBattleActive)

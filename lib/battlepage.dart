@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -19,8 +20,10 @@ class BattlePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Math: Convert meters (0-500) to Alignment (-1.0 to 1.0)
-    double playerAlign = (playerProgress / 500).clamp(0.0, 0.9) * 2 - 1;
-    double rivalAlign = (rivalProgress / 500).clamp(0.0, 0.9) * 2 - 1;
+    final double playerFactor = (playerProgress / 500).clamp(0.0, 0.9);
+    final double rivalFactor = (rivalProgress / 500).clamp(0.0, 0.9);
+    double playerAlign = playerFactor * 2 - 1;
+    double rivalAlign = rivalFactor * 2 - 1;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -63,9 +66,9 @@ class BattlePage extends StatelessWidget {
                           children: [
                             Text("⚔️", style: TextStyle(fontSize: 26, decoration: TextDecoration.none)),
                             SizedBox(width: 12),
-                            const Text(
+                            Text(
                               "BATTLE",
-                              style: TextStyle(
+                              style: GoogleFonts.kodeMono(
                                 color: Colors.white,
                                 fontSize: 32,
                                 letterSpacing: 5.0,
@@ -118,9 +121,9 @@ class BattlePage extends StatelessWidget {
                             ),
                           ),
 
-                          const Text(
+                          Text(
                             "V S",
-                            style: TextStyle(
+                            style: GoogleFonts.geologica(
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -173,7 +176,7 @@ class BattlePage extends StatelessWidget {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: FractionallySizedBox(
-                              widthFactor: (playerProgress / 500).clamp(0.0, 1.0),
+                              widthFactor: playerFactor,
                               child: Container(
                                 height: 30,
                                 decoration: BoxDecoration(
@@ -241,7 +244,7 @@ class BattlePage extends StatelessWidget {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: FractionallySizedBox(
-                              widthFactor: (rivalProgress / 500).clamp(0.0, 1.0),
+                              widthFactor: rivalFactor,
                               child: Container(
                                 height: 30,
                                 decoration: BoxDecoration(
@@ -460,7 +463,7 @@ class StatCard extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: GoogleFonts.geologica(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
