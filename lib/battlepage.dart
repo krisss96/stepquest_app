@@ -338,6 +338,47 @@ class BattlePage extends StatelessWidget {
   }
 }
 
+class BattleVsIntroOverlay extends StatelessWidget {
+  final Color playerColor;
+  final Color rivalColor;
+
+  const BattleVsIntroOverlay({
+    super.key,
+    required this.playerColor,
+    required this.rivalColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.expand(
+      child: Stack(
+        children: [
+          Container(color: playerColor),
+          ClipPath(
+            clipper: VsRightSideClipper(),
+            child: Container(color: rivalColor.withValues(alpha: 0.55)),
+          ),
+          Center(
+            child: Text(
+              'VS',
+              style: GoogleFonts.kodeMono(
+                fontSize: 72,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 2,
+                shadows: const [
+                  Shadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 3)),
+                ],
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class AnimatedBattleBanner extends StatefulWidget {
   final Widget child;
 
@@ -493,4 +534,21 @@ class RibbonClipper extends CustomClipper<Path> {
   }
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+// Custom clipper for the right side of the VS overlay, creates a diagonal cut
+class VsRightSideClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(size.width * 0.62, 0);
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width, size.height);
+    path.lineTo(size.width * 0.38, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false; // No need to reclip since the shape is static
 }
