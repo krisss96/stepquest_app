@@ -329,6 +329,25 @@ class BattlePage extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 18),
+
+                if (onIncrementProgress != null)
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: onIncrementProgress,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF751F),
+                        foregroundColor: const Color(0xFF0F231D),
+                        shape: const CircleBorder(),
+                        padding: EdgeInsets.zero,
+                        elevation: 5,
+                      ),
+                      child: const Icon(Icons.play_arrow, size: 24),
+                    ),
+                  ),
+
                 const SizedBox(height: 50),
               ],
             ),

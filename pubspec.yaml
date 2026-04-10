@@ -41,6 +41,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   google_maps_flutter: ^2.10.0
+  audioplayers: ^6.5.0
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +69,9 @@ flutter:
     - assets/runner.png
     - assets/finish.png
     - assets/9.png
+    - assets/audio/mixkit-game-level-completed-2059.wav
+    - assets/audio/mixkit-quick-positive-video-game-notification-interface-265.wav
+    - assets/audio/zapsplat_musical_strings_orchestra_riff_short_descending_fail_107286.mp3
 
   # To add assets to your application, add an assets section, like this:
   # assets:

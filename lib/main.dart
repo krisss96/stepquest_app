@@ -10,6 +10,7 @@ import 'battlepage.dart';
 import 'rivals.dart';
 import 'map.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() {
   runApp(const MyApp());
@@ -106,6 +107,14 @@ class _MyMapPageState extends State<MyMapPage> {
   List<ll.LatLng> capturedPoi = []; // keeping track on captured poi
   ll.LatLng myPosition = ll.LatLng(51.4416, 5.4897); // initial position
   bool _hasLocationPermission = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  static const String _battleDialogSound = 'mixkit-quick-positive-video-game-notification-interface-265.wav';
+  static const String _victorySound = 'mixkit-game-level-completed-2059.wav';
+  static const String _defeatSound = 'zapsplat_musical_strings_orchestra_riff_short_descending_fail_107286.mp3';
+
+  void _playBattleSound(String fileName) async {
+    await _audioPlayer.play(AssetSource('audio/$fileName'));
+  }
 
   List<ll.LatLng> _spacedPoi() {
     final filtered = <ll.LatLng>[];
@@ -148,7 +157,7 @@ class _MyMapPageState extends State<MyMapPage> {
   }
 
   // Custom marker generation
-  Future<gmaps.BitmapDescriptor> _getMarkerBitmap(IconData iconData, Color color, {int size = 62}) async {
+  Future<gmaps.BitmapDescriptor> _getMarkerBitmap(IconData iconData, Color color, {int size = 58}) async {
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(pictureRecorder);
     final Paint paint = Paint()..color = color;
@@ -281,6 +290,8 @@ class _MyMapPageState extends State<MyMapPage> {
               capturedPoi.add(hub); // save to memory
             });
             _saveCapturedData(); // save to persistent storage
+            _playBattleSound(_victorySound);
+            _showPoiCaptureVictoryPopup();
           }
         }
       }
@@ -368,15 +379,27 @@ class _MyMapPageState extends State<MyMapPage> {
           ),
         ),
         content: SingleChildScrollView(
-          child: Text(
-            "Your mission is simple: Get there.\n\n"
-                "Want to claim more territory? Walk further.\n\n"
-                "Want to conquer your enemies? Challenge them to a battle and be faster.\n\n "
-                "Turn the entire map blue, one step at a time.",
+          child: Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(text: "Your mission is simple: Get there.\n\n"),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Icon(Icons.flag, size: 20, color: Color(0xFFFFC58A)),
+                ),
+                const TextSpan(text: " Want to claim more territory? Walk further.\n\n"),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Icon(Icons.castle, size: 20, color: Color(0xFFFFC58A)),
+                ),
+                const TextSpan(text: " Want to conquer your enemies? Challenge them to a battle and be faster.\n\n"),
+                const TextSpan(text: "Turn the entire map blue, one step at a time."),
+              ],
+            ),
             style: GoogleFonts.geologica(
               color: const Color(0xFFEAF7F2),
               height: 1.4,
-              fontSize: 21,
+              fontSize: 18,
             ),
           ),
         ),
@@ -400,9 +423,56 @@ class _MyMapPageState extends State<MyMapPage> {
     );
   }
 
+  void _showPoiCaptureVictoryPopup() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF18372E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFFF751F), width: 1.8),
+        ),
+        title: Text(
+          "TERRITORY CAPTURED!",
+          style: GoogleFonts.kodeMono(
+            color: const Color(0xFFFFC58A),
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
+        ),
+        content: Text(
+          "The map is turning blue don't stop now, the next flag is waiting!",
+          style: GoogleFonts.geologica(
+            color: const Color(0xFFEAF7F2),
+            height: 1.4,
+            fontSize: 18,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF0F231D),
+              backgroundColor: const Color(0xFFFF751F),
+              textStyle: GoogleFonts.geologica(
+                fontWeight: FontWeight.w700,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text("Continue"),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Battle logic
   void showBattleDialog(Rival rival) async {
     _isBattleDialogOpen = true;
+    _playBattleSound(_battleDialogSound);
     final shouldStartBattle = await showDialog<bool>(
       context: context,
       builder: (context) =>
@@ -522,6 +592,7 @@ class _MyMapPageState extends State<MyMapPage> {
 
   //End battle
   void endBattle(bool playerWon, Rival rival) {
+    _playBattleSound(playerWon ? _victorySound : _defeatSound);
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -540,8 +611,8 @@ class _MyMapPageState extends State<MyMapPage> {
           ),
         ),
         content: Text(playerWon
-            ? "You have conquered new territory!"
-            : "The rival was too fast. Train harder and try again!",
+            ? "New territory conquered!r sector claimed!Don’t let up now, there are more towers to capture!"
+            : "You almost had them! Catch your breath, the rematch starts whenever you're ready!",
           style: GoogleFonts.geologica(
             color: const Color(0xFFEAF7F2),
             height: 1.4,
@@ -612,6 +683,7 @@ class _MyMapPageState extends State<MyMapPage> {
   Widget build(BuildContext context) {
     final spacedPoi = _spacedPoi();
     final spacedRivals = _spacedRivals();
+    final uncapturedPoi = spacedPoi.where((p) => !capturedPoi.contains(p)).toList();
 
     return Scaffold(
       // Scaffold - provides a basic structure for the app
@@ -638,7 +710,16 @@ class _MyMapPageState extends State<MyMapPage> {
                       ),
                 ),
 
-                ...spacedPoi.map((p) => gmaps.Marker(
+                ...capturedPoi.map((pos) => gmaps.Marker(
+                  markerId: gmaps.MarkerId('captured_${pos.latitude}_${pos.longitude}'),
+                  position: _toGmaps(pos),
+                  icon: _playerIcon ??
+                      gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                        gmaps.BitmapDescriptor.hueAzure,
+                      ),
+                )),
+
+                ...uncapturedPoi.map((p) => gmaps.Marker(
                   markerId: gmaps.MarkerId('poi_${p.latitude}_${p.longitude}'),
                   position: _toGmaps(p),
                   icon: _towerIcon ??
@@ -697,26 +778,34 @@ class _MyMapPageState extends State<MyMapPage> {
                       curve: Curves.easeOut,
                       decoration: BoxDecoration(
                         color: _isInstructionsHovered
-                            ? Colors.orange.withValues(alpha: 0.22)
-                            : Colors.black.withValues(alpha: 0.35),
+                            ? const Color(0xFFFF8A24)
+                            : const Color(0xFFB4571C),
                         borderRadius: BorderRadius.circular(24),
-                        boxShadow: _isInstructionsHovered
-                            ? [
+                        border: Border.all(
+                          color: _isInstructionsHovered
+                              ? const Color(0xFFFFF0DB)
+                              : const Color(0xFFFFD4A3),
+                          width: 1.8,
+                        ),
+                        boxShadow: [
                           BoxShadow(
-                            color: Colors.orange.withValues(alpha: 0.35),
-                            blurRadius: 14,
-                            spreadRadius: 1,
+                            color: (_isInstructionsHovered
+                                ? const Color(0xFFFF7A1A)
+                                : const Color(0xFF8F3C10))
+                                .withValues(alpha: _isInstructionsHovered ? 0.5 : 0.4),
+                            blurRadius: _isInstructionsHovered ? 18 : 12,
+                            spreadRadius: _isInstructionsHovered ? 2.0 : 0.8,
                           ),
-                        ]
-                            : null,
+                        ],
                       ),
                       child: IconButton(
                         tooltip: 'Game Instructions',
+                        iconSize: 28,
                         icon: Icon(
                           Icons.menu,
                           color: _isInstructionsHovered
-                              ? const Color(0xFFFFE2BF)
-                              : Colors.white,
+                              ? const Color(0xFF1E1208)
+                              : const Color(0xFFFFF4E6),
                         ),
                         onPressed: _showGameInstructions,
                       ),
